@@ -1,0 +1,12 @@
+{
+    "faqs": [
+        {
+            "question": "What are your business hours?",
+            "answer": "We are open Monday through Friday, 9 AM to 5 PM EST."
+        },
+        {
+            "question": "How can I contact support?",
+            "answer": "You can reach our support team through this SMS system or email at support@example.com"
+        }
+    ]
+} 
