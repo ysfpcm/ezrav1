@@ -1,7 +1,8 @@
 from flask import Flask
-from openai import OpenAI
 import os
 from dotenv import load_dotenv
+
+from .webhook import webhook_bp
 
 load_dotenv()
 
@@ -14,9 +15,12 @@ def create_app():
     app.config['TELNYX_SENDER_ID'] = os.getenv('TELNYX_SENDER_ID')
     app.config['TELNYX_PHONE_NUMBER'] = os.getenv('TELNYX_PHONE_NUMBER')
 
+    app.register_blueprint(webhook_bp)
+    return app
+
 def run_app():
     app = create_app()
     app.run(debug=True, port=5001)
 
 if __name__ == '__main__':
-    run_app() 
+    run_app()
