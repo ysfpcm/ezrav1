@@ -89,12 +89,10 @@ def send_sms_response(phone_number, message):
     }
     
     response = requests.post(url, json=payload, headers=headers)
+    response.raise_for_status()
     response_data = response.json()
     
-    if response.status_code >= 400:
-        print(f"❌ Failed to send SMS: {response_data}")
-    else:
-        print(f"✅ SMS sent successfully: {response_data}")
+    print(f"✅ SMS sent successfully: {response_data}")
     
     return response_data
 
