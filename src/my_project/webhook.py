@@ -4,6 +4,7 @@ import json
 import openai
 import requests
 from flask import Blueprint, current_app, jsonify, request
+from werkzeug.exceptions import HTTPException
 
 # Define the blueprint
 webhook_bp = Blueprint("webhook", __name__)
@@ -30,13 +31,29 @@ def sms_handler():
         data = request.get_json()
         print("Raw webhook data:", json.dumps(data, indent=2))
 
+        if not isinstance(data, dict) or not isinstance(data.get("data", {}), dict):
+            return jsonify({"status": "error", "message": "Invalid event data"}), 400
+
         # Check if it's an incoming message event
         event_type = data.get("data", {}).get("event_type", "")
 
         if event_type == "message.received":
             payload = data.get("data", {}).get("payload", {})
-            incoming_msg = payload.get("text", "").strip()
-            sender_phone = payload.get("from", {}).get("phone_number", "")
+            if not isinstance(payload, dict) or not isinstance(
+                payload.get("from", {}), dict
+            ):
+                return jsonify({"status": "error", "message": "Invalid payload"}), 400
+
+            incoming_msg = payload.get("text")
+            sender_phone = payload.get("from", {}).get("phone_number")
+            if (
+                not isinstance(incoming_msg, str)
+                or not incoming_msg.strip()
+                or not isinstance(sender_phone, str)
+                or not sender_phone.strip()
+            ):
+                return jsonify({"status": "error", "message": "Invalid message"}), 400
+            incoming_msg = incoming_msg.strip()
 
             print(f"\n📱 From: {sender_phone}")
             print(f"📝 Message: {incoming_msg}")
@@ -68,6 +85,8 @@ def sms_handler():
             }
         )
 
+    except HTTPException as e:
+        return jsonify({"status": "error", "message": e.description}), e.code
     except Exception as e:
         print(f"❌ Error processing SMS: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 500
