@@ -139,7 +139,10 @@ def process_incoming_message(incoming_msg):
     return answer
 
 
-@webhook_bp.errorhandler(405)
+@webhook_bp.app_errorhandler(405)
 def method_not_allowed(e):
     """Handle unsupported methods."""
-    return jsonify({"status": "error", "message": "Method Not Allowed"}), 405
+    response = e.get_response()
+    response.data = json.dumps({"status": "error", "message": "Method Not Allowed"})
+    response.content_type = "application/json"
+    return response
