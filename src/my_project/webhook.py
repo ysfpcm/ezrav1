@@ -111,7 +111,7 @@ def send_sms_response(phone_number, message):
         "messaging_profile_id": messaging_profile_id,
     }
 
-    response = requests.post(url, json=payload, headers=headers)
+    response = requests.post(url, json=payload, headers=headers, timeout=(5, 30))
     response.raise_for_status()
     response_data = response.json()
 
