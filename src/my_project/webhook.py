@@ -87,9 +87,9 @@ def sms_handler():
 
     except HTTPException as e:
         return jsonify({"status": "error", "message": e.description}), e.code
-    except Exception as e:
-        print(f"❌ Error processing SMS: {str(e)}")
-        return jsonify({"status": "error", "message": str(e)}), 500
+    except Exception:
+        current_app.logger.exception("Error processing SMS")
+        return jsonify({"status": "error", "message": "Internal server error"}), 500
 
 
 def send_sms_response(phone_number, message):
