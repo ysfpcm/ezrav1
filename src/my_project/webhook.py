@@ -54,6 +54,7 @@ def sms_handler():
             ):
                 return jsonify({"status": "error", "message": "Invalid message"}), 400
             incoming_msg = incoming_msg.strip()
+            sender_phone = sender_phone.strip()
 
             print(f"\n📱 From: {sender_phone}")
             print(f"📝 Message: {incoming_msg}")
