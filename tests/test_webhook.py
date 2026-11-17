@@ -51,6 +51,40 @@ class SmsHandlerTests(unittest.TestCase):
         process.assert_not_called()
         send.assert_not_called()
 
+    def test_missing_or_invalid_event_type_is_rejected(self):
+        events = [
+            {},
+            {"data": {}},
+            {"data": {"event_type": None}},
+            {"data": {"event_type": ""}},
+            {"data": {"event_type": "  "}},
+            {"data": {"event_type": 123}},
+        ]
+        with patch("my_project.webhook.process_incoming_message") as process, patch(
+            "my_project.webhook.send_sms_response"
+        ) as send:
+            for event in events:
+                with self.subTest(event=event):
+                    response = self.client.post("/sms", json=event)
+                    self.assertEqual(response.status_code, 400)
+                    self.assertEqual(response.json["status"], "error")
+
+        process.assert_not_called()
+        send.assert_not_called()
+
+    def test_other_event_type_is_ignored(self):
+        with patch("my_project.webhook.process_incoming_message") as process, patch(
+            "my_project.webhook.send_sms_response"
+        ) as send:
+            response = self.client.post(
+                "/sms", json={"data": {"event_type": "message.sent"}}
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json["status"], "ignored")
+        process.assert_not_called()
+        send.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
