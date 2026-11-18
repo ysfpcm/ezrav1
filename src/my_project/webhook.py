@@ -114,8 +114,14 @@ def send_sms_response(phone_number, message):
         "messaging_profile_id": messaging_profile_id,
     }
 
-    response = requests.post(url, json=payload, headers=headers, timeout=(5, 30))
+    response = requests.post(
+        url, json=payload, headers=headers, timeout=(5, 30), allow_redirects=False
+    )
     response.raise_for_status()
+    if not 200 <= response.status_code < 300:
+        raise requests.HTTPError(
+            f"Unexpected Telnyx status: {response.status_code}", response=response
+        )
     response_data = response.json()
 
     print(f"✅ SMS sent successfully: {response_data}")

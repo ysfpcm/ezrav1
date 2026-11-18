@@ -1,9 +1,10 @@
 import unittest
 from unittest.mock import patch
 
+import requests
 from flask import Flask
 
-from my_project.webhook import last_received_message, webhook_bp
+from my_project.webhook import last_received_message, send_sms_response, webhook_bp
 
 
 class SmsHandlerTests(unittest.TestCase):
@@ -84,6 +85,43 @@ class SmsHandlerTests(unittest.TestCase):
         self.assertEqual(response.json["status"], "ignored")
         process.assert_not_called()
         send.assert_not_called()
+
+    def test_telnyx_non_success_is_not_reported_as_success(self):
+        event = {
+            "data": {
+                "event_type": "message.received",
+                "payload": {
+                    "text": "Hello",
+                    "from": {"phone_number": "+15551234567"},
+                },
+            }
+        }
+        for status_code in (302, 400, 500):
+            with self.subTest(status_code=status_code):
+                telnyx_response = requests.Response()
+                telnyx_response.status_code = status_code
+                telnyx_response._content = b"{}"
+                with patch(
+                    "my_project.webhook.process_incoming_message", return_value="Hi"
+                ), patch(
+                    "my_project.webhook.requests.post", return_value=telnyx_response
+                ):
+                    response = self.client.post("/sms", json=event)
+
+                self.assertEqual(response.status_code, 500)
+                self.assertEqual(response.json["status"], "error")
+
+    def test_telnyx_success_does_not_follow_redirects(self):
+        telnyx_response = requests.Response()
+        telnyx_response.status_code = 202
+        telnyx_response._content = b'{"data": {"id": "message-id"}}'
+        with self.client.application.app_context(), patch(
+            "my_project.webhook.requests.post", return_value=telnyx_response
+        ) as post:
+            result = send_sms_response("+15551234567", "Hi")
+
+        self.assertEqual(result, {"data": {"id": "message-id"}})
+        self.assertIs(post.call_args.kwargs["allow_redirects"], False)
 
 
 if __name__ == "__main__":
