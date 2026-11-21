@@ -1,4 +1,5 @@
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import requests
@@ -85,6 +86,53 @@ class SmsHandlerTests(unittest.TestCase):
         self.assertEqual(response.json["status"], "ignored")
         process.assert_not_called()
         send.assert_not_called()
+
+    def test_invalid_openai_reply_is_not_sent(self):
+        event = {
+            "data": {
+                "event_type": "message.received",
+                "payload": {
+                    "text": "Hello",
+                    "from": {"phone_number": "+15551234567"},
+                },
+            }
+        }
+        for content in ("", "  \n  ", None):
+            with self.subTest(content=content):
+                completion = SimpleNamespace(
+                    choices=[SimpleNamespace(message=SimpleNamespace(content=content))]
+                )
+                with patch(
+                    "my_project.webhook.openai.chat", create=True
+                ) as chat, patch("my_project.webhook.send_sms_response") as send:
+                    chat.completions.create.return_value = completion
+                    response = self.client.post("/sms", json=event)
+
+                self.assertEqual(response.status_code, 500)
+                self.assertEqual(response.json["status"], "error")
+                send.assert_not_called()
+
+    def test_openai_reply_is_trimmed_before_sending(self):
+        event = {
+            "data": {
+                "event_type": "message.received",
+                "payload": {
+                    "text": "Hello",
+                    "from": {"phone_number": "+15551234567"},
+                },
+            }
+        }
+        completion = SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content=" Hi! \n"))]
+        )
+        with patch("my_project.webhook.openai.chat", create=True) as chat, patch(
+            "my_project.webhook.send_sms_response"
+        ) as send:
+            chat.completions.create.return_value = completion
+            response = self.client.post("/sms", json=event)
+
+        self.assertEqual(response.status_code, 200)
+        send.assert_called_once_with("+15551234567", "Hi!")
 
     def test_telnyx_non_success_is_not_reported_as_success(self):
         event = {

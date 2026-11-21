@@ -144,8 +144,10 @@ def process_incoming_message(incoming_msg):
         ],
     )
 
-    # Access the response content correctly
-    answer = response.choices[0].message.content.strip()
+    answer = response.choices[0].message.content
+    if not isinstance(answer, str) or not answer.strip():
+        raise ValueError("OpenAI returned an empty or invalid response")
+    answer = answer.strip()
     print(f"🤖 OpenAI Response: {answer}")
 
     return answer
