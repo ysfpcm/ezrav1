@@ -123,6 +123,32 @@ class SmsHandlerTests(unittest.TestCase):
         self.assertEqual(result, {"data": {"id": "message-id"}})
         self.assertIs(post.call_args.kwargs["allow_redirects"], False)
 
+    def test_telnyx_success_without_json_is_reported_as_success(self):
+        event = {
+            "data": {
+                "event_type": "message.received",
+                "payload": {
+                    "text": "Hello",
+                    "from": {"phone_number": "+15551234567"},
+                },
+            }
+        }
+        for status_code, content in ((202, b""), (202, b"accepted"), (204, b"")):
+            with self.subTest(status_code=status_code, content=content):
+                telnyx_response = requests.Response()
+                telnyx_response.status_code = status_code
+                telnyx_response._content = content
+                with patch(
+                    "my_project.webhook.process_incoming_message", return_value="Hi"
+                ), patch(
+                    "my_project.webhook.requests.post", return_value=telnyx_response
+                ) as post:
+                    response = self.client.post("/sms", json=event)
+
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json["status"], "success")
+                post.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

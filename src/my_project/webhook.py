@@ -122,7 +122,10 @@ def send_sms_response(phone_number, message):
         raise requests.HTTPError(
             f"Unexpected Telnyx status: {response.status_code}", response=response
         )
-    response_data = response.json()
+    try:
+        response_data = response.json()
+    except requests.exceptions.JSONDecodeError:
+        response_data = None
 
     print(f"✅ SMS sent successfully: {response_data}")
 
