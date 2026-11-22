@@ -78,14 +78,39 @@ class SmsHandlerTests(unittest.TestCase):
         with patch("my_project.webhook.process_incoming_message") as process, patch(
             "my_project.webhook.send_sms_response"
         ) as send:
-            response = self.client.post(
-                "/sms", json={"data": {"event_type": "message.sent"}}
-            )
+            for event_type in ("message.sent", "  message.sent  "):
+                with self.subTest(event_type=event_type):
+                    response = self.client.post(
+                        "/sms", json={"data": {"event_type": event_type}}
+                    )
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response.json["status"], "ignored")
+                    self.assertEqual(
+                        response.json["message"], "Ignored event type: message.sent"
+                    )
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json["status"], "ignored")
         process.assert_not_called()
         send.assert_not_called()
+
+    def test_padded_received_event_type_is_processed(self):
+        event = {
+            "data": {
+                "event_type": "  message.received  ",
+                "payload": {
+                    "text": "Hello",
+                    "from": {"phone_number": "+15551234567"},
+                },
+            }
+        }
+        with patch(
+            "my_project.webhook.process_incoming_message", return_value="Hi"
+        ) as process, patch("my_project.webhook.send_sms_response") as send:
+            response = self.client.post("/sms", json=event)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json["status"], "success")
+        process.assert_called_once_with("Hello")
+        send.assert_called_once_with("+15551234567", "Hi")
 
     def test_invalid_openai_reply_is_not_sent(self):
         event = {

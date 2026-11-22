@@ -38,6 +38,7 @@ def sms_handler():
         event_type = data.get("data", {}).get("event_type")
         if not isinstance(event_type, str) or not event_type.strip():
             return jsonify({"status": "error", "message": "Invalid event type"}), 400
+        event_type = event_type.strip()
 
         if event_type == "message.received":
             payload = data.get("data", {}).get("payload", {})
