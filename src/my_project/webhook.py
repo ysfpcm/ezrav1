@@ -29,7 +29,6 @@ def sms_handler():
     try:
         # Get the JSON payload from the webhook
         data = request.get_json()
-        print("Raw webhook data:", json.dumps(data, indent=2))
 
         if not isinstance(data, dict) or not isinstance(data.get("data", {}), dict):
             return jsonify({"status": "error", "message": "Invalid event data"}), 400
@@ -58,9 +57,6 @@ def sms_handler():
                 return jsonify({"status": "error", "message": "Invalid message"}), 400
             incoming_msg = incoming_msg.strip()
             sender_phone = sender_phone.strip()
-
-            print(f"\n📱 From: {sender_phone}")
-            print(f"📝 Message: {incoming_msg}")
 
             # Store the message for debugging or retrieval via GET
             last_received_message["from"] = sender_phone
@@ -128,7 +124,7 @@ def send_sms_response(phone_number, message):
     except requests.exceptions.JSONDecodeError:
         response_data = None
 
-    print(f"✅ SMS sent successfully: {response_data}")
+    print("✅ SMS sent successfully")
 
     return response_data
 
@@ -149,8 +145,6 @@ def process_incoming_message(incoming_msg):
     if not isinstance(answer, str) or not answer.strip():
         raise ValueError("OpenAI returned an empty or invalid response")
     answer = answer.strip()
-    print(f"🤖 OpenAI Response: {answer}")
-
     return answer
 
 
