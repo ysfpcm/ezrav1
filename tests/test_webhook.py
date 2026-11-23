@@ -1,4 +1,6 @@
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -36,6 +38,47 @@ class SmsHandlerTests(unittest.TestCase):
         self.assertEqual(last_received_message["from"], "+15551234567")
         process.assert_called_once_with("Hello")
         send.assert_called_once_with("+15551234567", "Hi")
+
+    def test_successful_request_does_not_print_sms_contents(self):
+        event = {
+            "data": {
+                "event_type": "message.received",
+                "payload": {
+                    "text": "private incoming message",
+                    "from": {"phone_number": "+15551234567"},
+                },
+            }
+        }
+        completion = SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content="private reply"))]
+        )
+        telnyx_response = requests.Response()
+        telnyx_response.status_code = 202
+        telnyx_response._content = b'{"data": {"id": "private delivery detail"}}'
+        output = StringIO()
+        with redirect_stdout(output), patch(
+            "my_project.webhook.openai.chat", create=True
+        ) as chat, patch(
+            "my_project.webhook.requests.post", return_value=telnyx_response
+        ) as post:
+            chat.completions.create.return_value = completion
+            response = self.client.post("/sms", json=event)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            chat.completions.create.call_args.kwargs["messages"][1]["content"],
+            "private incoming message",
+        )
+        self.assertEqual(post.call_args.kwargs["json"]["to"], "+15551234567")
+        self.assertEqual(post.call_args.kwargs["json"]["text"], "private reply")
+        for private_value in (
+            "+15551234567",
+            "private incoming message",
+            "private reply",
+            "private delivery detail",
+        ):
+            with self.subTest(private_value=private_value):
+                self.assertNotIn(private_value, output.getvalue())
 
     def test_whitespace_only_sender_is_rejected(self):
         event = {
